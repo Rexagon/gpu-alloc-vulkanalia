@@ -161,7 +161,7 @@ impl MemoryDevice<vk::DeviceMemory> for VulkanaliaMemoryDevice {
 ///   for Vulkan prior 1.2.
 ///   Otherwise the field must be set to false before passing to `GpuAllocator::new`.
 pub unsafe fn device_properties(
-    instance: Instance,
+    instance: &Instance,
     version: u32,
     physical_device: vk::PhysicalDevice,
 ) -> VkResult<DeviceProperties<'static>> {
@@ -173,24 +173,29 @@ pub unsafe fn device_properties(
     let memory_properties = instance.get_physical_device_memory_properties(physical_device);
 
     // Determine what to fetch by instance version and device features
-    let (query_props, query_features) = {
-        let mut required_extensions: [_; 3] = [
-            Some(&vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_EXTENSION.name),
+    let (query_props, query_features) = 'query: {
+        let mut required_extensions: [_; 2] = [
             Some(&vk::KHR_MAINTENANCE3_EXTENSION.name),
             Some(&vk::KHR_BUFFER_DEVICE_ADDRESS_EXTENSION.name),
         ];
 
         match vk::version_minor(version) {
-            0 => {}
+            0 => {
+                if !instance
+                    .extensions()
+                    .contains(&vk::KHR_GET_PHYSICAL_DEVICE_PROPERTIES2_EXTENSION.name)
+                {
+                    // Required devices extensions cannot be queried
+                    break 'query (false, false);
+                }
+            }
             1 => {
-                // `get_physical_device_features2` is mandatory since 1.1
-                required_extensions[0] = None;
                 // `max_memory_allocation_size` is mandatory since 1.1
                 required_extensions[1] = None;
             }
             _ => {
                 // `PhysicalDeviceBufferDeviceAddressFeatures` is mandatory since 1.2
-                required_extensions = [None, None, None];
+                required_extensions = [None, None];
             }
         }
 
@@ -216,11 +221,8 @@ pub unsafe fn device_properties(
                 }
             }
 
-            let [props2_ext, limits_ext, bda_ext] = required_extensions;
-            (
-                props2_ext.is_none() && limits_ext.is_none(),
-                props2_ext.is_none() && bda_ext.is_none(),
-            )
+            let [limits_ext, bda_ext] = required_extensions;
+            (limits_ext.is_none(), bda_ext.is_none())
         } else {
             (true, true)
         }
