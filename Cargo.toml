@@ -1,6 +1,6 @@
 [package]
 name = "gpu-alloc-vulkanalia"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.65"
 description = "`vulkanalia` backend for `gpu-alloc`"
@@ -13,6 +13,6 @@ include = ["src/**/*.rs", "LICENSE-*", "README.md"]
 [dependencies]
 gpu-alloc-types = "0.3"
 smallvec = { version = "1", features = ["union", "const_generics"] }
-vulkanalia = "0.23"
+vulkanalia = "0.25"
 
 tracing = { version = "0.1", features = ["attributes"], optional = true }
